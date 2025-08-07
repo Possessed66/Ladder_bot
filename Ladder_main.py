@@ -1,3 +1,4 @@
+import os
 import asyncio
 import logging
 import math
@@ -9,6 +10,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import StateFilter
 from aiogram.fsm.storage.memory import MemoryStorage
+from dotenv import load_dotenv
+
 
 # --- Настройка логирования ---
 logging.basicConfig(level=logging.INFO)
@@ -648,8 +651,12 @@ async def cancel_handler(message: Message, state: FSMContext):
 
 # --- ЗАПУСК В РЕЖИМЕ ПОЛЛИНГА ---
 async def main():
-    # Замените 'YOUR_BOT_TOKEN' на токен вашего бота
-    bot = Bot(token='YOUR_BOT_TOKEN')
+    # Получаем токен из переменных окружения
+    token = os.getenv('BOT_TOKEN')
+    if not token:
+        raise ValueError("BOT_TOKEN не найден в переменных окружения. Проверьте файл .env")
+    
+    bot = Bot(token=token)
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(router)
 
