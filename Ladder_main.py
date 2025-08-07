@@ -446,7 +446,7 @@ class LadderCalculator:
         """
         Форматирует результат для вывода в Telegram.
         """
-        # logger.debug(f"format_result called with result keys: {result.keys()}") # Раскомментируйте для отладки
+        # logger.debug(f"format_result called with result keys: {result.keys()}") # Для отладки
         if "error" in result:
             text = f"❌ Ошибка: {result['error']}\n"
             # Добавляем рекомендации, если есть
@@ -471,8 +471,6 @@ class LadderCalculator:
                     text += f"  {min_opt['steps']} ступеней\n"
                     text += f"  Высота: {min_opt['height']} см, Ширина: {min_opt['width']} см\n"
                     text += f"  Займет: {min_opt['projection']} см\n"
-            # else:
-                # logger.debug("No suggestions found in error result") # Раскомментируйте для отладки
             return text
             
         text = "📊 РАСЧЕТ ЛЕСТНИЦЫ\n" + "=" * 30 + "\n"
@@ -517,12 +515,15 @@ class LadderCalculator:
             text += "Предупреждения:\n"
             for warning in feasibility["warnings"]:
                 text += f"  • {warning}\n"
-        # --- ИСПРАВЛЕНИЕ: Всегда проверяем наличие suggestions ---
-        # Даже если основной расчет успешен, но feasibility False
+        # --- ИСПРАВЛЕНИЕ: Всегда проверяем и отображаем suggestions ---
+        # Это ключевое изменение: отображаем рекомендации независимо от того,
+        # где они были сгенерированы (в ошибке или в основном результате)
         if "suggestions" in result and result["suggestions"]:
-            # logger.debug("Found suggestions in main result, adding to output") # Раскомментируйте для отладки
+            # logger.debug("Found suggestions in main result, adding to output") # Для отладки
             suggestions = result["suggestions"]
             text += f"\n💡 РЕКОМЕНДАЦИИ:\n"
+            # Отображаем message из suggestions
+            text += f"{suggestions['message']}\n" 
             if "standard_option" in suggestions:
                 std = suggestions["standard_option"]
                 text += f"✅ {std['note']}\n"
@@ -535,15 +536,13 @@ class LadderCalculator:
                 text += f"  {best['steps']} ступеней\n"
                 text += f"  Высота: {best['height']} см, Ширина: {best['width']} см\n"
                 text += f"  Займет: {best['projection']} см\n"
-            elif "minimum_option" in suggestions:
+            elif "minimum_option" in suggestions: # elif, потому что это взаимоисключающие варианты
                 min_opt = suggestions["minimum_option"]
                 text += f"🔻 Минимальные параметры:\n"
                 text += f"  {min_opt['steps']} ступеней\n"
                 text += f"  Высота: {min_opt['height']} см, Ширина: {min_opt['width']} см\n"
                 text += f"  Займет: {min_opt['projection']} см\n"
-        #elif not feasibility["possible"]:
-                  #logger.debug("Feasibility is False but no suggestions found in result") 
-        
+        # ---------------------------------------------------------------
         text += "\n"
         # Длина лестницы
         if "ladder_length" in result:
