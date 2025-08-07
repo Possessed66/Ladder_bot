@@ -287,68 +287,118 @@ class LadderCalculator:
     def suggest_optimal_parameters(self, height: float, available_length: float,
                                    available_width: Optional[float] = None) -> Dict[str, any]:
         """
-        Предлагает оптимальные параметры лестницы для заданных габаритов, ориентируясь на стандарт 30x20 см.
+        Предлагает оптимальные параметры лестницы для заданных габаритов, ориентируясь на стандарт 30x20 см
+        и целевой диапазон углов 30-45 градусов.
         """
         suggestions = {
-            "message": "Предложения по оптимизации под стандарт 30x20 см"
+            "message": "Предложения по оптимизации под стандарт 30x20 см и угол 30°-45°"
         }
-        # 1. Попробуем использовать стандартные элементы
-        # Рассчитаем количество ступеней с высотой 20 см
-        std_steps = round(height / self.standard_step_height)
-        std_actual_height = height / std_steps
-        std_width = self.standard_step_width
-        std_projection = (std_steps - 1) * std_width
-        if std_projection <= available_length and \
-                self.min_step_height <= std_actual_height <= self.max_step_height:
-            suggestions["standard_option"] = {
-                "note": "Рекомендуемый стандартный вариант",
-                "steps": std_steps,
-                "height": round(std_actual_height, 2),
-                "width": std_width,
-                "projection": round(std_projection, 2),
-                "will_fit": True
-            }
-            suggestions["message"] = "Найдено решение с использованием стандартных элементов 30x20 см"
-        # 2. Если стандарт не подходит, ищем альтернативы
-        # Находим максимальное количество ступеней, которое поместится
-        max_steps = 0
-        best_params = None
-        # Пробуем от 3 до 25 ступеней
-        for steps in range(3, 26):
+
+        # --- 1. Целевые диапазоны углов ---
+        target_min_angle = self.min_angle  # 30
+        target_max_angle = self.max_angle  # 45
+
+        # --- 2. Определим диапазон допустимой длины проекции для заданной высоты ---
+        # Угол = arctg(высота / длина_проекции)
+        # Чтобы угол был 30°: длина_проекции = высота / tg(30°)
+        # Чтобы угол был 45°: длина_проекции = высота / tg(45°)
+        # Убедимся, что math импортирован
+        
+        min_proj_for_max_angle = height / math.tan(math.radians(target_max_angle)) # Для 45°
+        max_proj_for_min_angle = height / math.tan(math.radians(target_min_angle)) # Для 30°
+        
+        suggestions["target_projection_range"] = {
+            "min_for_45_deg": round(min_proj_for_max_angle, 2),
+            "max_for_30_deg": round(max_proj_for_min_angle, 2),
+            "note": f"Для угла 30°-45° при высоте {height} см, проекция должна быть от {round(min_proj_for_max_angle, 2)} до {round(max_proj_for_min_angle, 2)} см"
+        }
+
+        # --- 3. Вариант 1: Используем стандартную ширину 30 см и находим подходящее количество ступеней ---
+        std_width = self.standard_step_width # 30 см
+        
+        # Найдем диапазон подходящих количеств ступеней
+        min_steps_for_angle = max(3, math.ceil(height / (self.max_step_height))) # Макс. высота -> мин. кол-во ступеней
+        max_steps_for_angle = min(25, math.floor(height / (self.min_step_height))) # Мин. высота -> макс. кол-во ступеней
+        
+        best_angle_option = None
+        # Перебираем количества ступеней в этом диапазоне
+        for steps in range(min_steps_for_angle, max_steps_for_angle + 1):
             step_height = height / steps
-            # Проверяем, попадает ли высота в допустимый диапазон
-            if self.min_step_height <= step_height <= self.max_step_height:
-                step_width = self.standard_step_width  # Пробуем с фиксированной шириной 30 см
-                horizontal_projection = (steps - 1) * step_width
-                if horizontal_projection <= available_length:
-                    if steps > max_steps:
-                        max_steps = steps
-                        best_params = {
-                            "steps": steps,
-                            "height": round(step_height, 2),
-                            "width": step_width,
-                            "projection": round(horizontal_projection, 2)
-                        }
-        if best_params and (max_steps != std_steps or not suggestions.get("standard_option")):
-            suggestions["best_option"] = best_params
-            if "message" not in suggestions or "стандарт" not in suggestions["message"]:
-                suggestions["message"] = "Найдены подходящие параметры (ширина ступени фиксирована 30 см)"
-        # 3. Если ничего не нашли, предлагаем минимальные параметры
-        if not suggestions.get("standard_option") and not suggestions.get("best_option"):
-            # Предлагаем минимальные параметры
-            min_steps = max(3, round(height / self.max_step_height))
-            min_height = height / min_steps
-            min_width = self.standard_step_width  # Фиксируем ширину
-            min_projection = (min_steps - 1) * min_width
-            suggestions["minimum_option"] = {
+            # Проверка высоты подступенка
+            if not (self.min_step_height <= step_height <= self.max_step_height):
+                continue
+                
+            # Рассчитываем проекцию
+            projection = (steps - 1) * std_width
+            
+            # Рассчитываем угол
+            if projection > 0:
+                angle = math.degrees(math.atan(height / projection))
+            else:
+                continue # Избегаем деления на 0 или отрицательной проекции
+            
+            # Проверяем, попадает ли угол в целевой диапазон
+            if target_min_angle <= angle <= target_max_angle:
+                # Нашли подходящий вариант
+                if best_angle_option is None or abs(angle - 37.5) < abs(best_angle_option['angle'] - 37.5): # 37.5° как "золотая середина"
+                    best_angle_option = {
+                        "steps": steps,
+                        "height": round(step_height, 2),
+                        "width": std_width,
+                        "projection": round(projection, 2),
+                        "angle": round(angle, 2),
+                        "recommended_min_length": round(projection, 2) # Это и есть рекомендуемая длина проема
+                    }
+        
+        if best_angle_option:
+             suggestions["best_angle_option"] = best_angle_option
+             suggestions["message"] = "Найден вариант с оптимальным углом (ширина ступени 30 см)"
+        
+        # --- 4. Вариант 2: Если нет варианта с оптимальным углом, предложим минимально возможный ---
+        if not best_angle_option:
+            # Просто используем стандартное количество ступеней (как было)
+            std_steps = round(height / self.standard_step_height)
+            std_actual_height = height / std_steps
+            std_width = self.standard_step_width
+            std_projection = (std_steps - 1) * std_width
+            std_angle = math.degrees(math.atan(height / std_projection)) if std_projection > 0 else 0
+            
+            # Проверка на допустимость высоты
+            if self.min_step_height <= std_actual_height <= self.max_step_height:
+                suggestions["standard_option"] = {
+                    "note": "Стандартный вариант (30x20 см)",
+                    "steps": std_steps,
+                    "height": round(std_actual_height, 2),
+                    "width": std_width,
+                    "projection": round(std_projection, 2),
+                    "angle": round(std_angle, 2),
+                    "recommended_min_length": round(std_projection, 2),
+                    "angle_status": self.check_angle(std_angle)
+                }
+                suggestions["message"] = "Стандартный вариант (может не соответствовать углу 30°-45°)"
+            
+        # --- 5. Вариант 3: Если стандартный тоже не подходит, предложим минимальное количество ступеней ---
+        if "standard_option" not in suggestions and not best_angle_option:
+             min_steps = max(3, round(height / self.max_step_height))
+             min_height = height / min_steps
+             min_width = self.standard_step_width
+             min_projection = (min_steps - 1) * min_width
+             min_angle = math.degrees(math.atan(height / min_projection)) if min_projection > 0 else 0
+             
+             suggestions["minimum_option"] = {
                 "steps": min_steps,
                 "height": round(min_height, 2),
                 "width": min_width,
-                "projection": round(min_projection, 2)
-            }
-            suggestions["message"] = "Рекомендуемые минимальные параметры (ширина ступени 30 см)"
+                "projection": round(min_projection, 2),
+                "angle": round(min_angle, 2),
+                "recommended_min_length": round(min_projection, 2),
+                "angle_status": self.check_angle(min_angle)
+             }
+             suggestions["message"] = "Минимальный вариант (может не соответствовать углу 30°-45°)"
+             
         return suggestions
 
+    
     def calculate_all(self, height: float, length: float, width: Optional[float] = None,
                       angle: Optional[float] = None, step_height: Optional[float] = None,
                       step_width: Optional[float] = None, ladder_type: int = 1) -> Dict[str, any]:
@@ -430,8 +480,7 @@ class LadderCalculator:
         result["feasibility"] = feasibility
         logger.debug(f"Feasibility check result: {feasibility}")
                           
-        if not feasibility["possible"]:
-            # Добавляем предложения по исправлению
+       if not feasibility["possible"] or "issues" in feasibility and feasibility["issues"]:
             suggestions = self.suggest_optimal_parameters(height, length, width)
             result["suggestions"] = suggestions
             logger.debug(f"Suggestions generated: {suggestions}")
@@ -451,26 +500,43 @@ class LadderCalculator:
             text = f"❌ Ошибка: {result['error']}\n"
             # Добавляем рекомендации, если есть
             if "suggestions" in result and result["suggestions"]:
-                suggestions = result["suggestions"]
-                text += f"\n💡 РЕКОМЕНДАЦИИ:\n"
-                if "standard_option" in suggestions:
-                    std = suggestions["standard_option"]
-                    text += f"✅ {std['note']}\n"
-                    text += f"  {std['steps']} ступеней\n"
-                    text += f"  Высота: {std['height']} см, Ширина: {std['width']} см\n"
-                    text += f"  Займет: {std['projection']} см из доступных {result['inputs']['length']} см\n"
-                if "best_option" in suggestions:
-                    best = suggestions["best_option"]
-                    text += f"🔧 Альтернативный вариант:\n"
-                    text += f"  {best['steps']} ступеней\n"
-                    text += f"  Высота: {best['height']} см, Ширина: {best['width']} см\n"
-                    text += f"  Займет: {best['projection']} см\n"
-                elif "minimum_option" in suggestions:
-                    min_opt = suggestions["minimum_option"]
-                    text += f"🔻 Минимальные параметры:\n"
-                    text += f"  {min_opt['steps']} ступеней\n"
-                    text += f"  Высота: {min_opt['height']} см, Ширина: {min_opt['width']} см\n"
-                    text += f"  Займет: {min_opt['projection']} см\n"
+            suggestions = result["suggestions"]
+            text += f"\n💡 РЕКОМЕНДАЦИИ:\n"
+            text += f"{suggestions['message']}\n"
+            
+            # Отображаем целевой диапазон проекции
+            if "target_projection_range" in suggestions:
+                range_info = suggestions["target_projection_range"]
+                text += f"ℹ️ Для угла 30°-45° при высоте {result['inputs']['height']} см:\n"
+                text += f"   Рекомендуемая длина проема: {range_info['min_for_45_deg']} - {range_info['max_for_30_deg']} см\n"
+            
+            # Отображаем лучший вариант с оптимальным углом
+            if "best_angle_option" in suggestions:
+                opt = suggestions["best_angle_option"]
+                text += f"✅ Вариант с оптимальным углом:\n"
+                text += f"  {opt['steps']} ступеней\n"
+                text += f"  Высота: {opt['height']} см, Ширина: {opt['width']} см\n"
+                text += f"  Угол: {opt['angle']}°\n"
+                text += f"  Требуемая длина проема: не менее {opt['recommended_min_length']} см\n"
+            
+            # Отображаем стандартный вариант
+            if "standard_option" in suggestions:
+                std = suggestions["standard_option"]
+                text += f"📏 Стандартный вариант (30x20 см):\n"
+                text += f"  {std['steps']} ступеней\n"
+                text += f"  Высота: {std['height']} см, Ширина: {std['width']} см\n"
+                text += f"  Угол: {std['angle']}° ({std['angle_status']})\n"
+                text += f"  Требуемая длина проема: не менее {std['recommended_min_length']} см\n"
+                
+            # Отображаем минимальный вариант
+            if "minimum_option" in suggestions:
+                min_opt = suggestions["minimum_option"]
+                text += f"🔻 Минимальный вариант:\n"
+                text += f"  {min_opt['steps']} ступеней\n"
+                text += f"  Высота: {min_opt['height']} см, Ширина: {min_opt['width']} см\n"
+                text += f"  Угол: {min_opt['angle']}° ({min_opt['angle_status']})\n"
+                text += f"  Требуемая длина проема: не менее {min_opt['recommended_min_length']} см\n"
+                
             return text
             
         text = "📊 РАСЧЕТ ЛЕСТНИЦЫ\n" + "=" * 30 + "\n"
