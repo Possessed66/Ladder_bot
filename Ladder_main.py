@@ -505,14 +505,22 @@ class LadderCalculator:
                 text += f"{suggestions['message']}\n"
             
             # Отображаем целевой диапазон проекции
-            if "target_projection_range" in suggestions:
-                range_info = suggestions["target_projection_range"]
+            if "suggestions" in result and result["suggestions"] and isinstance(result["suggestions"], dict):
+                logger.debug("Found suggestions in main result, adding to output") # Для отладки
+                suggestions_data = result["suggestions"] # Получаем сам словарь suggestions
+                text += f"\n💡 РЕКОМЕНДАЦИИ:\n"
+            # Отображаем message из suggestions
+                text += f"{suggestions_data['message']}\n"
+            
+            # Отображаем целевой диапазон проекции
+            if "target_projection_range" in suggestions_data:
+                range_info = suggestions_data["target_projection_range"]
                 text += f"ℹ️ Для угла 30°-45° при высоте {result['inputs']['height']} см:\n"
                 text += f"   Рекомендуемая длина проема: {range_info['min_for_45_deg']} - {range_info['max_for_30_deg']} см\n"
             
             # Отображаем лучший вариант с оптимальным углом
-            if "best_angle_option" in suggestions:
-                opt = suggestions["best_angle_option"]
+            if "best_angle_option" in suggestions_data:
+                opt = suggestions_data["best_angle_option"]
                 text += f"✅ Вариант с оптимальным углом:\n"
                 text += f"  {opt['steps']} ступеней\n"
                 text += f"  Высота: {opt['height']} см, Ширина: {opt['width']} см\n"
@@ -520,21 +528,21 @@ class LadderCalculator:
                 text += f"  Требуемая длина проема: не менее {opt['recommended_min_length']} см\n"
             
             # Отображаем стандартный вариант
-            if "standard_option" in suggestions:
-                std = suggestions["standard_option"]
+            if "standard_option" in suggestions_data:
+                std = suggestions_data["standard_option"]
                 text += f"📏 Стандартный вариант (30x20 см):\n"
                 text += f"  {std['steps']} ступеней\n"
                 text += f"  Высота: {std['height']} см, Ширина: {std['width']} см\n"
-                text += f"  Угол: {std['angle']}° ({std['angle_status']})\n"
+                text += f"  Угол: {std['angle']}° ({std.get('angle_status', '---')})\n"
                 text += f"  Требуемая длина проема: не менее {std['recommended_min_length']} см\n"
                 
             # Отображаем минимальный вариант
-            if "minimum_option" in suggestions:
-                min_opt = suggestions["minimum_option"]
+            if "minimum_option" in suggestions_data:
+                min_opt = suggestions_data["minimum_option"]
                 text += f"🔻 Минимальный вариант:\n"
                 text += f"  {min_opt['steps']} ступеней\n"
                 text += f"  Высота: {min_opt['height']} см, Ширина: {min_opt['width']} см\n"
-                text += f"  Угол: {min_opt['angle']}° ({min_opt['angle_status']})\n"
+                text += f"  Угол: {min_opt['angle']}° ({min_opt.get('angle_status', '---')})\n"
                 text += f"  Требуемая длина проема: не менее {min_opt['recommended_min_length']} см\n"
                 
             return text
