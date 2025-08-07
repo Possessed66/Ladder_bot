@@ -541,8 +541,8 @@ class LadderCalculator:
                 text += f"  {min_opt['steps']} ступеней\n"
                 text += f"  Высота: {min_opt['height']} см, Ширина: {min_opt['width']} см\n"
                 text += f"  Займет: {min_opt['projection']} см\n"
-         elif not feasibility["possible"]:
-              logger.debug("Feasibility is False but no suggestions found in result") 
+             elif not feasibility["possible"]:
+                  logger.debug("Feasibility is False but no suggestions found in result") 
         
         text += "\n"
         # Длина лестницы
