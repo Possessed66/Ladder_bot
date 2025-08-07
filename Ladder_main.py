@@ -14,8 +14,11 @@ from dotenv import load_dotenv
 
 
 # --- Настройка логирования ---
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG) # Или level=logging.INFO для менее подробного лога
+logger = logging.getLogger(__name__)
+
 load_dotenv('secret.env')
+
 # --- ИНТЕГРАЦИЯ LADDERCALCULATOR ---
 class LadderCalculator:
     """Класс для расчета параметров лестницы с фиксированными элементами 30x20 см"""
@@ -352,9 +355,13 @@ class LadderCalculator:
         """
         Полный расчет всех параметров лестницы с проверкой возможности установки.
         """
+        logger.debug(f"calculate_all called with: height={height}, length={length}, width={width}, "
+                     f"ladder_type={ladder_type}")
+                          
         # Валидация входных данных
         validation_error = self.validate_inputs(height, length, width)
         if validation_error:
+            logger.debug(f"Validation error: {validation_error}")
             return {"error": validation_error}
         result = {
             "inputs": {
@@ -375,16 +382,24 @@ class LadderCalculator:
             "message": angle_msg,
             "status": self.check_angle(calculated_angle)
         }
+        logger.debug(f"Calculated angle: {calculated_angle}, status: {result['angle']['status']}")
+        
         # Расчет количества ступеней и параметров
         steps, steps_msg, actual_height, actual_width = self.calculate_steps(
             height, length, step_height, step_width
         )
+        logger.debug(f"Steps calculation: steps={steps}, msg={steps_msg}, "
+                     f"actual_height={actual_height}, actual_width={actual_width}")
+
         if steps is None:
             result["error"] = steps_msg
+            logger.debug("Steps is None, generating suggestions...")
             # Добавляем предложения по исправлению
             suggestions = self.suggest_optimal_parameters(height, length, width)
             result["suggestions"] = suggestions
+            logger.debug(f"Suggestions generated: {suggestions}")
             return result
+            
         result["steps"] = {
             "count": steps,
             "message": steps_msg,
@@ -398,6 +413,8 @@ class LadderCalculator:
             "value": ladder_length,
             "message": length_msg
         }
+        logger.debug(f"Ladder length: {ladder_length}")
+                          
         # Расчет габаритов
         footprint = None
         horizontal_projection = 0
@@ -411,11 +428,13 @@ class LadderCalculator:
             actual_width or 0, actual_height or 0, horizontal_projection
         )
         result["feasibility"] = feasibility
-
+        logger.debug(f"Feasibility check result: {feasibility}")
+                          
         if not feasibility["possible"]:
             # Добавляем предложения по исправлению
             suggestions = self.suggest_optimal_parameters(height, length, width)
             result["suggestions"] = suggestions
+            logger.debug(f"Suggestions generated: {suggestions}")
                           
         # Расчет деталей
         if steps is not None:
@@ -427,6 +446,7 @@ class LadderCalculator:
         """
         Форматирует результат для вывода в Telegram.
         """
+        # logger.debug(f"format_result called with result keys: {result.keys()}") # Раскомментируйте для отладки
         if "error" in result:
             text = f"❌ Ошибка: {result['error']}\n"
             # Добавляем рекомендации, если есть
@@ -451,7 +471,10 @@ class LadderCalculator:
                     text += f"  {min_opt['steps']} ступеней\n"
                     text += f"  Высота: {min_opt['height']} см, Ширина: {min_opt['width']} см\n"
                     text += f"  Займет: {min_opt['projection']} см\n"
+            # else:
+                # logger.debug("No suggestions found in error result") # Раскомментируйте для отладки
             return text
+            
         text = "📊 РАСЧЕТ ЛЕСТНИЦЫ\n" + "=" * 30 + "\n"
         # Входные данные
         inputs = result["inputs"]
@@ -477,8 +500,6 @@ class LadderCalculator:
             text += f"Высота подступенка: {steps_data['actual_height']} см\n"
         if steps_data['actual_width']:
             text += f"Ширина ступени: {steps_data['actual_width']} см\n"
-        # if steps_data.get('step_sum'): # Удалено
-        #     text += f"Шаг ступени: {steps_data['step_sum']} см\n"
         text += f"{steps_data['message']}\n"
         text += "\n"
         # Проверка возможности установки
@@ -496,6 +517,33 @@ class LadderCalculator:
             text += "Предупреждения:\n"
             for warning in feasibility["warnings"]:
                 text += f"  • {warning}\n"
+        # --- ИСПРАВЛЕНИЕ: Всегда проверяем наличие suggestions ---
+        # Даже если основной расчет успешен, но feasibility False
+        if "suggestions" in result and result["suggestions"]:
+            # logger.debug("Found suggestions in main result, adding to output") # Раскомментируйте для отладки
+            suggestions = result["suggestions"]
+            text += f"\n💡 РЕКОМЕНДАЦИИ:\n"
+            if "standard_option" in suggestions:
+                std = suggestions["standard_option"]
+                text += f"✅ {std['note']}\n"
+                text += f"  {std['steps']} ступеней\n"
+                text += f"  Высота: {std['height']} см, Ширина: {std['width']} см\n"
+                text += f"  Займет: {std['projection']} см из доступных {result['inputs']['length']} см\n"
+            if "best_option" in suggestions:
+                best = suggestions["best_option"]
+                text += f"🔧 Альтернативный вариант:\n"
+                text += f"  {best['steps']} ступеней\n"
+                text += f"  Высота: {best['height']} см, Ширина: {best['width']} см\n"
+                text += f"  Займет: {best['projection']} см\n"
+            elif "minimum_option" in suggestions:
+                min_opt = suggestions["minimum_option"]
+                text += f"🔻 Минимальные параметры:\n"
+                text += f"  {min_opt['steps']} ступеней\n"
+                text += f"  Высота: {min_opt['height']} см, Ширина: {min_opt['width']} см\n"
+                text += f"  Займет: {min_opt['projection']} см\n"
+         elif not feasibility["possible"]:
+              logger.debug("Feasibility is False but no suggestions found in result") 
+        
         text += "\n"
         # Длина лестницы
         if "ladder_length" in result:
