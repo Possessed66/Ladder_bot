@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 # --- Настройка логирования ---
 logging.basicConfig(level=logging.INFO)
-
+load_dotenv()
 # --- ИНТЕГРАЦИЯ LADDERCALCULATOR ---
 class LadderCalculator:
     """Класс для расчета параметров лестницы с фиксированными элементами 30x20 см"""
