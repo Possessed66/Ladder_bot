@@ -411,6 +411,12 @@ class LadderCalculator:
             actual_width or 0, actual_height or 0, horizontal_projection
         )
         result["feasibility"] = feasibility
+
+        if not feasibility["possible"]:
+            # Добавляем предложения по исправлению
+            suggestions = self.suggest_optimal_parameters(height, length, width)
+            result["suggestions"] = suggestions
+                          
         # Расчет деталей
         if steps is not None:
             parts = self.calculate_parts(steps, ladder_type)
