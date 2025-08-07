@@ -480,10 +480,10 @@ class LadderCalculator:
         result["feasibility"] = feasibility
         logger.debug(f"Feasibility check result: {feasibility}")
                           
-       if not feasibility["possible"] or "issues" in feasibility and feasibility["issues"]:
-            suggestions = self.suggest_optimal_parameters(height, length, width)
-            result["suggestions"] = suggestions
-            logger.debug(f"Suggestions generated: {suggestions}")
+        if not feasibility["possible"] or "issues" in feasibility and feasibility["issues"]:
+             suggestions = self.suggest_optimal_parameters(height, length, width)
+             result["suggestions"] = suggestions
+             logger.debug(f"Suggestions generated: {suggestions}")
                           
         # Расчет деталей
         if steps is not None:
