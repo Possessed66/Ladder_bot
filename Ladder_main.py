@@ -500,9 +500,9 @@ class LadderCalculator:
             text = f"❌ Ошибка: {result['error']}\n"
             # Добавляем рекомендации, если есть
             if "suggestions" in result and result["suggestions"]:
-            suggestions = result["suggestions"]
-            text += f"\n💡 РЕКОМЕНДАЦИИ:\n"
-            text += f"{suggestions['message']}\n"
+                suggestions = result["suggestions"]
+                text += f"\n💡 РЕКОМЕНДАЦИИ:\n"
+                text += f"{suggestions['message']}\n"
             
             # Отображаем целевой диапазон проекции
             if "target_projection_range" in suggestions:
